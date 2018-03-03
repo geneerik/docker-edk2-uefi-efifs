@@ -76,7 +76,7 @@ RUN echo 'if [ -n "${SSH_USERS}" ]; then \
                 fi; \
 		if [ ${_UID} = "" -o ${_UID} = "0" ]; then \
 			adduser --ingroup ${_NAME} --shell '/bin/bash' --home /home/${_NAME} --disabled-password --gecos "" ${_NAME}; \
-        else \
+		else \
 			adduser --uid ${_UID} --ingroup ${_NAME} --shell '/bin/bash' --home /home/${_NAME} --disabled-password --gecos "" ${_NAME}; \
 		fi; \
 		echo ">> User create successfully; modifying user settings"; \
@@ -85,6 +85,7 @@ RUN echo 'if [ -n "${SSH_USERS}" ]; then \
 		echo ">> temporary password for user ${_NAME} is ${NEWPASS}"; \
 		chage -d0 ${_NAME}; \
 		usermod -a -G sudo ${_NAME}; \
+		echo -e"\n\n. /opt/src/edk2/edksetup.sh" >> /home/${_NAME}/.bashrc
 	        if [ ! -e "/home/${_NAME}/.ssh/authorized_keys" ]; then \
 	            echo "WARNING: No SSH authorized_keys found for ${_NAME}!"; \
 	        fi; \
@@ -153,5 +154,3 @@ RUN mkdir -p /opt/src/ && \
 	git checkout UDK2017 && \
 	git pull --all && \
 	make -C BaseTools
-
-#TODO: copy in scripts to preapre the build
