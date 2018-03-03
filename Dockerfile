@@ -27,7 +27,7 @@
 #
 # Connect like so, with the password requested shown when the exec command above is executed.
 #
-#   $ ssh -X -o "StrictHostKeyChecking=no" $(docker inspect -f "{{ .NetworkSettings.Networks.bridge.IPAddress }}" geneerik-tianocore-builder)
+#   $ ssh -X -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" $(docker inspect -f "{{ .NetworkSettings.Networks.bridge.IPAddress }}" geneerik-tianocore-builder)
 #
 # Please note: in order to utilize the OVMF images with qemu, you will need to forward X11 (the flag is included
 # in the command above, but X11 forwarding cna be complex depending on your host system)
