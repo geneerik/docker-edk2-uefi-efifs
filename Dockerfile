@@ -13,8 +13,7 @@
 # id_rsa.pub.  Both files are expected to reside in the users /home/username/.ssh
 # directory.  If you need to generate an ssh key; google is your friend (hint: github instructions)
 #
-# Launch the generated image like so (note: this allows the container to connect
-# to your system's systemd service; caviet emptor):
+# Launch the generated image like so:
 #
 #   docker run -d -p 2222:22 -v /home/$(whoami)/.ssh/id_rsa.pub:/home/$(whoami)/.ssh/authorized_keys -e SSH_USERS="$(whoami):$(id -u $(whoami)):$(id -g $(whoami))" --name geneerik-tianocore-builder geneerik/tianocore-sshd
 #
