@@ -85,7 +85,7 @@ RUN echo 'if [ -n "${SSH_USERS}" ]; then \
 		echo ">> temporary password for user ${_NAME} is ${NEWPASS}"; \
 		chage -d0 ${_NAME}; \
 		usermod -a -G sudo ${_NAME}; \
-		echo -e"\n\n. /opt/src/edk2/edksetup.sh" >> /home/${_NAME}/.bashrc
+		echo -e"\n\n. /opt/src/edk2/edksetup.sh" >> /home/${_NAME}/.bashrc \
 	        if [ ! -e "/home/${_NAME}/.ssh/authorized_keys" ]; then \
 	            echo "WARNING: No SSH authorized_keys found for ${_NAME}!"; \
 	        fi; \
