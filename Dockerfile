@@ -1,22 +1,22 @@
 #
 # Tianocore UEFI docker
 #
-# Docker file to start a Ubuntu docker instance on machines utilizing the systemd architecture
-# and setup sshd with public key authentication for specified users and keys with tools
-# necessary for building UEFI Tianocore based projects; all items needed for OVMF are ready
+# Docker file to start a Ubuntu docker instance on machines utilizing sshd with public key
+# authentication for specified users and keys with tools necessary for building UEFI Tianocore
+# based projects; all items needed for OVMF are ready
 #
 # Build it like so:
-#   root@host~# docker build --no-cache --network=homenet -t=geneeirk/tianocore-sshd $(pwd)
+#   root@host~# docker build --no-cache --network=homenet -t=geneerik/tianocore-sshd $(pwd)
 #
-# Generate assh keys; in this example we will only use the current user
+# Generate ssh keys; in this example we will only use the current user
 # and expect the private key to be called id_rsa and the public key to be call
 # id_rsa.pub.  Both files are expected to reside in the users /home/username/.ssh
 # directory.  If you need to generate an ssh key; google is your friend (hint: github instructions)
 #
 # Launch the generated image like so (note: this allows the container to connect
-# to your system's systemd service; caviat emptor):
+# to your system's systemd service; caviet emptor):
 #
-#   docker run -d -p 2222:22 -v /sys/fs/cgroup:/sys/fs/cgroup:ro --cap-add SYS_ADMIN -v /home/$(whoami)/.ssh/id_rsa.pub:/home/$(whoami)/.ssh/authorized_keys -e SSH_USERS="$(whoami):$(id -u $(whoami)):$(id -g $(whoami))" --name geneerik-tianocore-builder geneeirk/tianocore-sshd
+#   docker run -d -p 2222:22 -v /home/$(whoami)/.ssh/id_rsa.pub:/home/$(whoami)/.ssh/authorized_keys -e SSH_USERS="$(whoami):$(id -u $(whoami)):$(id -g $(whoami))" --name geneerik-tianocore-builder geneerik/tianocore-sshd
 #
 # Now that the instance is started, run the following command to add the user to
 # the container
@@ -31,7 +31,7 @@
 #   $ ssh -X -o "StrictHostKeyChecking=no" $(docker inspect -f "{{ .NetworkSettings.Networks.bridge.IPAddress }}" geneerik-tianocore-builder)
 #
 # Please note: in order to utilize the OVMF images with qemu, you will need to forward X11 (the flag is included
-# in the command above, but X11 forwarding can be complex depending on your host system)
+# in the command above, but X11 forwarding cna be complex depending on your host system)
 #
 # Gene Erik
 # --
@@ -39,8 +39,6 @@
 #
 #  From this base-image / starting-point
 
-#At the time of this writing, this give use Ubuntu 16.04.4 LTS
-#TODO: lock this in permanently in from statement
 FROM ubuntu
 
 #
@@ -87,12 +85,15 @@ RUN echo 'if [ -n "${SSH_USERS}" ]; then \
 		echo ">> temporary password for user ${_NAME} is ${NEWPASS}"; \
 		chage -d0 ${_NAME}; \
 		usermod -a -G sudo ${_NAME}; \
-		echo -e"\n\n. /opt/src/edk2/edksetup.sh" >> /home/${_NAME}/.bashrc \
+		( echo -e "\n\n. /opt/src/edk2/edksetup.sh" >> /home/${_NAME}/.bashrc ); \
 	        if [ ! -e "/home/${_NAME}/.ssh/authorized_keys" ]; then \
 	            echo "WARNING: No SSH authorized_keys found for ${_NAME}!"; \
 	        fi; \
 	done; \
 fi' >> /sbin/createsshuser.sh
+
+RUN bash -c 'if [[ ! -e /sbin/createsshuser.sh ]]; then echo "/sbin/createsshuser.sh doesnt exists; cant go on"; exit 1; fi'
+RUN chmod +x /sbin/createsshuser.sh
 
 # Update MOTD
 RUN bash -c 'if [ -v MOTD ]; then \
@@ -145,7 +146,7 @@ RUN rm /etc/init/ssh.override; \
     bash -c 'if [[ ! -f /etc/systemd/system/sshd.service ]]; then ln -s /lib/systemd/system/ssh.service /etc/systemd/system/sshd.service; fi'
 
 # Set init to be the entry point as this is a complete system running sshd as a service
-ENTRYPOINT ["/sbin/init"]
+#ENTRYPOINT ["/sbin/init"]
 
 # Clone the Tianocore repo as set the branch to UDK2017 as this is the current release
 RUN mkdir -p /opt/src/ && \
@@ -156,3 +157,5 @@ RUN mkdir -p /opt/src/ && \
 	git checkout UDK2017 && \
 	git pull --all && \
 	make -C BaseTools
+
+CMD ["/usr/sbin/sshd", "-D"]
