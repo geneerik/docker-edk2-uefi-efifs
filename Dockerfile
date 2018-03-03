@@ -14,7 +14,7 @@
 # directory.  If you need to generate an ssh key; google is your friend (hint: github instructions)
 #
 # Launch the generated image like so (note: this allows the container to connect
-# to your system's systemd service; caviet emptor):
+# to your system's systemd service; caviat emptor):
 #
 #   docker run -d -p 2222:22 -v /sys/fs/cgroup:/sys/fs/cgroup:ro --cap-add SYS_ADMIN -v /home/$(whoami)/.ssh/id_rsa.pub:/home/$(whoami)/.ssh/authorized_keys -e SSH_USERS="$(whoami):$(id -u $(whoami)):$(id -g $(whoami))" --name geneerik-tianocore-builder geneeirk/tianocore-sshd
 #
@@ -31,7 +31,7 @@
 #   $ ssh -X -o "StrictHostKeyChecking=no" $(docker inspect -f "{{ .NetworkSettings.Networks.bridge.IPAddress }}" geneerik-tianocore-builder)
 #
 # Please note: in order to utilize the OVMF images with qemu, you will need to forward X11 (the flag is included
-# in the command above, but X11 forwarding cna be complex depending on your host system)
+# in the command above, but X11 forwarding can be complex depending on your host system)
 #
 # Gene Erik
 # --
@@ -39,6 +39,8 @@
 #
 #  From this base-image / starting-point
 
+#At the time of this writing, this give use Ubuntu 16.04.4 LTS
+#TODO: lock this in permanently in from statement
 FROM ubuntu
 
 #
