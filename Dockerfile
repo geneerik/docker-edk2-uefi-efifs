@@ -75,9 +75,9 @@ RUN echo 'if [ -n "${SSH_USERS}" ]; then \
                         addgroup --gid ${_GID} ${_NAME}; \
                 fi; \
 		if [ ${_UID} = "" -o ${_UID} = "0" ]; then \
-			adduser --ingroup ${_NAME} --shell '/bin/bash' --home /home/${_NAME} --disabled-password --gecos "" ${_NAME}; \
+			adduser --ingroup ${_NAME} --shell "/bin/bash" --home /home/${_NAME} --disabled-password --gecos "" ${_NAME}; \
 		else \
-			adduser --uid ${_UID} --ingroup ${_NAME} --shell '/bin/bash' --home /home/${_NAME} --disabled-password --gecos "" ${_NAME}; \
+			adduser --uid ${_UID} --ingroup ${_NAME} --shell "/bin/bash" --home /home/${_NAME} --disabled-password --gecos "" ${_NAME}; \
 		fi; \
 		echo ">> User create successfully; modifying user settings"; \
 		NEWPASS=$(tr -cd "[:alnum:]" < /dev/urandom | fold -w30 | head -n1); \
