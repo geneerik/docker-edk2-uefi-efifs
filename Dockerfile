@@ -50,7 +50,7 @@ MAINTAINER geneerik@thisdomaindoesntexistyet.com
 RUN apt-get update && apt-get install -y build-essential uuid-dev iasl git gcc-5 nasm python
 
 #install prerequisites for sshd
-RUN noninteractive apt-get install less sudo openssh-server openssh-client --yes --force-yes
+RUN DEBIAN_FRONTEND=noninteractive apt-get install less sudo openssh-server openssh-client --yes --force-yes
 
 # Create a script to be called after the instance is started to setup ssh
 # Add users if SSH_USERS=user:uid:gid set, unlock the account, expire the passwords
