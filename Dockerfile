@@ -3,7 +3,7 @@
 #
 # Docker file to start a Ubuntu docker instance on machines utilizing the systemd architecture
 # and setup sshd with public key authentication for specified users and keys with tools
-# necessary for building UEFI Tianocore based projects; all items needed for OMVF are ready
+# necessary for building UEFI Tianocore based projects; all items needed for OVMF are ready
 #
 # Build it like so:
 #   root@host~# docker build --no-cache --network=homenet -t=geneeirk/tianocore-sshd $(pwd)
@@ -30,7 +30,7 @@
 #
 #   $ ssh -X -o "StrictHostKeyChecking=no" $(docker inspect -f "{{ .NetworkSettings.Networks.bridge.IPAddress }}" geneerik-tianocore-builder)
 #
-# Please note: in order to utilize the OMVF images with qemu, you will need to forward X11 (the flag is included
+# Please note: in order to utilize the OVMF images with qemu, you will need to forward X11 (the flag is included
 # in the command above, but X11 forwarding cna be complex depending on your host system)
 #
 # Gene Erik
@@ -47,7 +47,7 @@ FROM ubuntu
 MAINTAINER geneerik@thisdomaindoesntexistyet.com
 
 #install prequisites for building tianocore
-RUN apt-get update && apt-get install -y build-essential uuid-dev iasl git gcc-5 nasm python
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential uuid-dev iasl git gcc-5 nasm python
 
 #install prerequisites for sshd
 RUN DEBIAN_FRONTEND=noninteractive apt-get install less sudo openssh-server openssh-client --yes --force-yes
@@ -145,7 +145,7 @@ RUN rm /etc/init/ssh.override; \
 # Set init to be the entry point as this is a complete system running sshd as a service
 ENTRYPOINT ["/sbin/init"]
 
-# Clone the Tianocor repo as set the branch to UDK2017 as this is the current release
+# Clone the Tianocore repo as set the branch to UDK2017 as this is the current release
 RUN mkdir -p /opt/src/ && \
 	cd /opt/src && \
 	git clone https://github.com/tianocore/edk2 && \
