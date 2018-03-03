@@ -139,8 +139,8 @@ RUN rm /etc/init/ssh.override; \
     mv /etc/rc3.d/K01ssh /etc/rc3.d/S01ssh; \
     mv /etc/rc4.d/K01ssh /etc/rc4.d/S01ssh; \
     mv /etc/rc5.d/K01ssh /etc/rc5.d/S01ssh; \
-    ln -s /lib/systemd/system/ssh.service /etc/systemd/system/multi-user.target.wants/ssh.service; \
-    ln -s /lib/systemd/system/ssh.service /etc/systemd/system/sshd.service
+    bash -c 'if [[ ! -f /etc/systemd/system/multi-user.target.wants/ssh.service ]]; then ln -s /lib/systemd/system/ssh.service /etc/systemd/system/multi-user.target.wants/ssh.service; fi' && \
+    bash -c 'if [[ ! -f /etc/systemd/system/sshd.service ]]; then ln -s /lib/systemd/system/ssh.service /etc/systemd/system/sshd.service; fi'
 
 # Set init to be the entry point as this is a complete system running sshd as a service
 ENTRYPOINT ["/sbin/init"]
