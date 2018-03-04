@@ -13,7 +13,8 @@
 # id_rsa.pub.  Both files are expected to reside in the users /home/username/.ssh
 # directory.  If you need to generate an ssh key; google is your friend (hint: github instructions)
 #
-# Launch the generated image like so:
+# Launch the generated image like so (note: this allows the container to connect
+# to your system's systemd service; caviet emptor):
 #
 #   docker run -d -p 2222:22 -v /home/$(whoami)/.ssh/id_rsa.pub:/home/$(whoami)/.ssh/authorized_keys -e SSH_USERS="$(whoami):$(id -u $(whoami)):$(id -g $(whoami))" --name geneerik-tianocore-builder geneerik/tianocore-sshd
 #
@@ -30,7 +31,7 @@
 #   $ ssh -X -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" $(docker inspect -f "{{ .NetworkSettings.Networks.bridge.IPAddress }}" geneerik-tianocore-builder)
 #
 # Please note: in order to utilize the OVMF images with qemu, you will need to forward X11 (the flag is included
-# in the command above, but X11 forwarding cna be complex depending on your host system)
+# in the command above, but X11 forwarding can be complex depending on your host system)
 #
 # Gene Erik
 # --
@@ -38,18 +39,34 @@
 #
 #  From this base-image / starting-point
 
-FROM ubuntu
+FROM ubuntu:xenial
+
+ENV EDK_BRANCH ${EDK_BRANCH:-master}
+ENV TARGET_ARCH ${TARGET_ARCH:-IA32 X64}
+ENV MAX_CONCURRENT_THREAD_NUMBER ${MAX_CONCURRENT_THREAD_NUMBER:-1}
 
 #
 #  Authorship
 #
 MAINTAINER geneerik@thisdomaindoesntexistyet.com
 
-#install prequisites for building tianocore
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y build-essential uuid-dev iasl git gcc-5 nasm python
+#Install prerequisites for building tianocore
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade  --yes --force-yes && DEBIAN_FRONTEND=noninteractive apt-get install build-essential uuid-dev iasl git gcc-5 nasm python  --yes --force-yes
 
 #install prerequisites for sshd
 RUN DEBIAN_FRONTEND=noninteractive apt-get install less sudo openssh-server openssh-client --yes --force-yes
+
+#Create script to clone the Tianocore repo and set the branch to EDK_BRANCH
+RUN ( bash -c 'echo -e "#!/bin/bash\n\n" > /usr/local/bin/getandmaketcbase.sh' ) && ( echo 'mkdir -p /opt/src/ && \
+	cd /opt/src && \
+	git clone https://github.com/tianocore/edk2 && \
+	cd edk2 && \
+	( for branch in `git branch -a | grep remotes | grep -v HEAD | grep -v master `; do git branch --track ${branch#remotes/origin/} $branch; done ) && \
+	git pull --tags && \
+	git checkout ${EDK_BRANCH} && \
+	git pull --all && \
+	make -C BaseTools' >> /usr/local/bin/getandmaketcbase.sh ) && \
+	chmod +x /usr/local/bin/getandmaketcbase.sh
 
 # Create a script to be called after the instance is started to setup ssh
 # Add users if SSH_USERS=user:uid:gid set, unlock the account, expire the passwords
@@ -84,20 +101,21 @@ RUN echo 'if [ -n "${SSH_USERS}" ]; then \
 		echo ">> temporary password for user ${_NAME} is ${NEWPASS}"; \
 		chage -d0 ${_NAME}; \
 		usermod -a -G sudo ${_NAME}; \
-		( echo -e "\n\n. /opt/src/edk2/edksetup.sh" >> /home/${_NAME}/.bashrc ); \
-	        if [ ! -e "/home/${_NAME}/.ssh/authorized_keys" ]; then \
-	            echo "WARNING: No SSH authorized_keys found for ${_NAME}!"; \
-	        fi; \
+		cp -r /etc/skel/. /home/${_NAME}; \
+		( echo "export EDK_BRANCH=\"${EDK_BRANCH}\"" >> /home/${_NAME}/.bashrc ); \
+		( echo "export TARGET_ARCH=\"${TARGET_ARCH}\"" >> /home/${_NAME}/.bashrc ); \
+		( echo "export MAX_CONCURRENT_THREAD_NUMBER=\"${MAX_CONCURRENT_THREAD_NUMBER}\"" >> /home/${_NAME}/.bashrc ); \
+		( echo "\nif [[ ! -e /opt/src/edk2 ]];then\n  /usr/local/bin/getandmaketcbase.sh\nfi\ncd /opt/src/edk2 && . ./edksetup.sh && /usr/local/bin/setedktargets.sh" >> /home/${_NAME}/.bashrc ); \
+		chmod +x /home/${_NAME}/.bashrc; \
+		chown -R ${_UID}:${_GID} /home/${_NAME}; \
+		if [ ! -e "/home/${_NAME}/.ssh/authorized_keys" ]; then \
+			echo "WARNING: No SSH authorized_keys found for ${_NAME}!"; \
+		fi; \
 	done; \
 fi' >> /sbin/createsshuser.sh
 
 RUN bash -c 'if [[ ! -e /sbin/createsshuser.sh ]]; then echo "/sbin/createsshuser.sh doesnt exists; cant go on"; exit 1; fi'
 RUN chmod +x /sbin/createsshuser.sh
-
-# Update MOTD
-RUN bash -c 'if [ -v MOTD ]; then \
-    echo -e "$MOTD" > /etc/motd; \
-fi'
 
 # Update the sshd_config file to allow the use of the public keys in
 # user home directories; not sure if this is necessary
@@ -144,17 +162,34 @@ RUN rm /etc/init/ssh.override; \
     bash -c 'if [[ ! -f /etc/systemd/system/multi-user.target.wants/ssh.service ]]; then ln -s /lib/systemd/system/ssh.service /etc/systemd/system/multi-user.target.wants/ssh.service; fi' && \
     bash -c 'if [[ ! -f /etc/systemd/system/sshd.service ]]; then ln -s /lib/systemd/system/ssh.service /etc/systemd/system/sshd.service; fi'
 
-# Set init to be the entry point as this is a complete system running sshd as a service
-#ENTRYPOINT ["/sbin/init"]
+#create source destingation directory
+RUN mkdir /opt/src && chmod 777 /opt/src
+	
+#create script to set GCC5, target, and MdeModulePkg/MdeModulePkg.dsc
+RUN ( echo '#!/bin/bash' >> /usr/local/bin/setedktargets.sh ) && \
+	( echo "sed -i -e ':begin;\$!N;s@^ACTIVE_PLATFORM \\+=.*\\(\\\r\\)\\\{0,1\\\}\\(\\\n\\)\\\{0,1\\\}@@;tbegin;P;D' /opt/src/edk2/Conf/target.txt" >> /usr/local/bin/setedktargets.sh ) && \
+	( echo "sed -i -e ':begin;\$!N;s@^TARGET_ARCH \\+=.*\\(\\\r\\)\\\{0,1\\\}\\(\\\n\\)\\\{0,1\\\}@@;tbegin;P;D' /opt/src/edk2/Conf/target.txt" >> /usr/local/bin/setedktargets.sh ) && \
+	( echo "sed -i -e ':begin;\$!N;s@^TOOL_CHAIN_TAG \\+=.*\\(\\\r\\)\\\{0,1\\\}\\(\\\n\\)\\\{0,1\\\}@@;tbegin;P;D' /opt/src/edk2/Conf/target.txt" >> /usr/local/bin/setedktargets.sh ) && \
+	( echo "sed -i -e ':begin;\$!N;s@^MAX_CONCURRENT_THREAD_NUMBER \\+=.*\\(\\\r\\)\\\{0,1\\\}\\(\\\n\\)\\\{0,1\\\}@@;tbegin;P;D' /opt/src/edk2/Conf/target.txt" >> /usr/local/bin/setedktargets.sh ) && \
+	( echo "sed -i ':a;/^[ \\\n]*\$/{\$d;N;ba}' /opt/src/edk2/Conf/target.txt" >> /usr/local/bin/setedktargets.sh ) && \
+	( echo 'echo "ACTIVE_PLATFORM = MdeModulePkg/MdeModulePkg.dsc" >> /opt/src/edk2/Conf/target.txt' >> /usr/local/bin/setedktargets.sh ) && \
+	( echo 'echo "TARGET_ARCH = ${TARGET_ARCH}" >> /opt/src/edk2/Conf/target.txt' >> /usr/local/bin/setedktargets.sh ) && \
+	( echo 'echo "TOOL_CHAIN_TAG = GCC5" >> /opt/src/edk2/Conf/target.txt' >> /usr/local/bin/setedktargets.sh ) && \
+	( echo 'echo "MAX_CONCURRENT_THREAD_NUMBER = ${MAX_CONCURRENT_THREAD_NUMBER}" >> /opt/src/edk2/Conf/target.txt' >> /usr/local/bin/setedktargets.sh ) && \
+	chmod +x /usr/local/bin/setedktargets.sh
 
-# Clone the Tianocore repo as set the branch to UDK2017 as this is the current release
-RUN mkdir -p /opt/src/ && \
-	cd /opt/src && \
-	git clone https://github.com/tianocore/edk2 && \
-	cd edk2 && \
-	( for branch in `git branch -a | grep remotes | grep -v HEAD | grep -v master `; do git branch --track ${branch#remotes/origin/} $branch; done ) && \
-	git checkout UDK2017 && \
-	git pull --all && \
-	make -C BaseTools
+# install qemu
+RUN DEBIAN_FRONTEND=noninteractive apt-get install qemu --yes --force-yes
 
+#TODO: add scripts to build MDE and OVMF
+#TODO: add script to setup EFI env for OVMF after build is done
+
+#cd /opt/src/edk2 && ( build 2>&1 | tee build_mde.log ) && ( build -p OvmfPkg/OvmfPkgIa32X64.dsc 2>&1 | tee build_ovmf.log ) && mkdir ../ovmf_qemu && cd ../ovmf_qemu/ && mkdir hda-contents
+
+#TODO: Add qemu startup script
+
+# qemu-system-x86_64 -pflash ../edk2/Build/Ovmf3264/DEBUG_GCC5/FV/OVMF.fd -hda fat:rw:hda-contents
+
+#start sshd directly; alternatively, we could use systemd
+#and use entrypoint /sbin/init
 CMD ["/usr/sbin/sshd", "-D"]
