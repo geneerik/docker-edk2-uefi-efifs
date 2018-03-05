@@ -181,14 +181,31 @@ RUN ( echo '#!/bin/bash' >> /usr/local/bin/setedktargets.sh ) && \
 # install qemu
 RUN DEBIAN_FRONTEND=noninteractive apt-get install qemu --yes --force-yes
 
-#TODO: add scripts to build MDE and OVMF
-#TODO: add script to setup EFI env for OVMF after build is done
+#create script to build MDE
+RUN ( echo '#!/bin/bash' >> /usr/local/bin/buildmde.sh ) && \
+	( echo 'cd /opt/src/edk2 && ( build 2>&1 | tee build_mde.log )' >> /usr/local/bin/buildmde.sh ) && \
+	chmod +x /usr/local/bin/buildmde.sh
+#create script to build OVMF for ia32+x64
+RUN ( echo '#!/bin/bash' >> /usr/local/bin/buildovmf3264.sh ) && \
+	( echo 'cd /opt/src/edk2 && ( build -p OvmfPkg/OvmfPkgIa32X64.dsc 2>&1 | tee build_ovmf.log )' >> /usr/local/bin/buildovmf3264.sh ) && \
+	chmod +x /usr/local/bin/buildovmf3264.sh
+#create script to build both mde and OVMF for ia32+x64
+RUN ( echo '#!/bin/bash' >> /usr/local/bin/buildmdeandovmf3264.sh ) && \
+	( echo '/usr/local/bin/buildmde.sh && /usr/local/bin/buildovmf3264.sh' >> /usr/local/bin/buildmdeandovmf3264.sh ) && \
+	chmod +x /usr/local/bin/buildmdeandovmf3264.sh
 
-#cd /opt/src/edk2 && ( build 2>&1 | tee build_mde.log ) && ( build -p OvmfPkg/OvmfPkgIa32X64.dsc 2>&1 | tee build_ovmf.log ) && mkdir ../ovmf_qemu && cd ../ovmf_qemu/ && mkdir hda-contents
+#create script to build qemu env to ovmf
+RUN ( echo '#!/bin/bash' >> /usr/local/bin/prepareovmfqemu.sh ) && \
+	( echo 'mkdir -p /opt/src/ovmf_qemu/hda-contents' >> /usr/local/bin/prepareovmfqemu.sh ) && \
+	chmod +x /usr/local/bin/prepareovmfqemu.sh
 
-#TODO: Add qemu startup script
-
-# qemu-system-x86_64 -pflash ../edk2/Build/Ovmf3264/DEBUG_GCC5/FV/OVMF.fd -hda fat:rw:hda-contents
+#create qemu-x86-64 startup script
+RUN ( echo '#!/bin/bash' >> /usr/local/bin/startqemux8664ovmf.sh ) && \
+	( echo 'set -e' >> /usr/local/bin/startqemux8664ovmf.sh ) && \
+	( echo '/usr/local/bin/prepareovmfqemu.sh' >> /usr/local/bin/startqemux8664ovmf.sh ) && \
+	( echo 'cd /opt/src/ovmf_qemu' >> /usr/local/bin/startqemux8664ovmf.sh ) && \
+	( echo 'qemu-system-x86_64 -pflash /opt/src/edk2/Build/Ovmf3264/DEBUG_GCC5/FV/OVMF.fd -hda fat:rw:hda-contents' >> /usr/local/bin/startqemux8664ovmf.sh ) && \
+	chmod +x /usr/local/bin/startqemux8664ovmf.sh
 
 #start sshd directly; alternatively, we could use systemd
 #and use entrypoint /sbin/init
