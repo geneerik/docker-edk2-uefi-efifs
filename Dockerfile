@@ -6,7 +6,7 @@
 # based projects; all items needed for OVMF are ready
 #
 # Build it like so:
-#   root@host~# docker build --no-cache --network=homenet -t=geneerik/tianocore-sshd $(pwd)
+#   root@host~# docker build -t=geneerik/tianocore-sshd $(pwd)
 #
 # Generate ssh keys; in this example we will only use the current user
 # and expect the private key to be called id_rsa and the public key to be call
