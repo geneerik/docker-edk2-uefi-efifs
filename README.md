@@ -1,4 +1,4 @@
-# UEFI EDKII Development Environment
+# UEFI EDKII Development Environment w/ EfiFs
 
 This docker container can be used to build projects based on the Tiano EDKII UEFI project and utilizing the EfiFs project (grub EFI FS drivers).
 
